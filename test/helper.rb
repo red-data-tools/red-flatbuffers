@@ -32,7 +32,7 @@ module Helper
         FileUtils.mkdir_p(reflection_dir)
         reflection_fbs =
           Path.flatbuffers_repository + "reflection" + "reflection.fbs"
-        Path.reflection_bfbs = reflection_fbs.sub_ext(".bfbs")
+        Path.reflection_bfbs = reflection_dir + "reflextion.bfbs"
         run_flatc("-o", reflection_dir.to_s,
                   "--binary",
                   "--schema",

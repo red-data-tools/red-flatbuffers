@@ -16,6 +16,7 @@
 
 require "bundler/gem_helper"
 require "rake/clean"
+require "tmpdir"
 
 base_dir = __dir__
 
@@ -43,20 +44,22 @@ namespace :reflection do
     if flatbuffers_repository.nil?
       raise "Specify FLATBUFFERS_REPOSITORY to use data in google/flatbuffers"
     end
-    reflection_dir = File.join(flatbuffers_repository, "reflection")
-    reflection_fbs = File.join(reflection_dir, "reflection.fbs")
-    reflection_bfbs = File.join(reflection_dir, "reflection.bfbs")
-    sh("flatc",
-       "-o", reflection_dir,
-       "--binary",
-       "--schema",
-       "--bfbs-builtins",
-       "--bfbs-comments",
-       reflection_fbs)
-    ruby("-Ilib",
-         "bin/rbflatc",
-         "--output-dir", "lib/flatbuffers",
-         "--outer-namespaces", "FlatBuffers",
-         reflection_bfbs)
+    Dir.mktmpdir do |tmp_dir|
+      reflection_dir = File.join(flatbuffers_repository, "reflection")
+      reflection_fbs = File.join(reflection_dir, "reflection.fbs")
+      reflection_bfbs = File.join(tmp_dir, "reflection.bfbs")
+      sh("flatc",
+         "-o", tmp_dir,
+         "--binary",
+         "--schema",
+         "--bfbs-builtins",
+         "--bfbs-comments",
+         reflection_fbs)
+      ruby("-Ilib",
+           "bin/rbflatc",
+           "--output-dir", "lib/flatbuffers",
+           "--outer-namespaces", "FlatBuffers",
+           reflection_bfbs)
+    end
   end
 end
