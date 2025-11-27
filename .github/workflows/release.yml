@@ -1,0 +1,44 @@
+# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Release
+on:
+  push:
+    tags:
+      - "*"
+jobs:
+  github:
+    name: GitHub
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Extract release note
+        run: |
+          ruby \
+            -e 'print("## Red FlatBuffers "); \
+                puts(ARGF.read.split(/^## /)[1]. \
+                       gsub(/ {.+?}/, ""). \
+                       gsub(/\[(.+?)\]\[.+?\]/) {$1})' \
+            doc/text/news.md | tee release-note.md
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title=$(head -n1 release-note.md | sed -e 's/^## //')
+          tail -n +2 release-note.md > release-note-without-version.md
+          gh release create ${GITHUB_REF_NAME} \
+            --discussion-category Announcements \
+            --notes-file release-note-without-version.md \
+            --title "${title}"
