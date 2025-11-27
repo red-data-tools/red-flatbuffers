@@ -36,6 +36,9 @@ Gem::Specification.new do |spec|
   spec.files = ["README.md", "#{spec.name}.gemspec"]
   spec.files += Dir.glob("lib/**/*.rb")
   spec.files += Dir.glob("doc/text/*")
+  Dir.chdir("bin") do
+    spec.executables = Dir.glob("*")
+  end
 
   spec.add_development_dependency("bundler")
   spec.add_development_dependency("rake")
