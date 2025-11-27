@@ -60,7 +60,7 @@ jobs:
         if: |
           matrix.runs-on == 'windows-latest'
         run: |
-          ridk exec pacman -S --no-confirm flatbuffers
+          ridk exec pacman -S --noconfirm flatbuffers
       - name: Test
         run: |
           bundle exec rake
