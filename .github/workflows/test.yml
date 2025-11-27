@@ -59,7 +59,7 @@ jobs:
         if: |
           matrix.runs-on == 'windows-latest'
         run: |
-          ridk exec pacman -S --noconfirm flatbuffers
+          ridk exec pacman -S --noconfirm ${Env:MINGW_PACKAGE_PREFIX}-flatbuffers
       - name: Test
         run: |
           bundle exec rake
