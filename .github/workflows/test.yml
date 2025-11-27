@@ -28,7 +28,7 @@ jobs:
           - "3.2"
           - "3.3"
           - "3.4"
-          - ruby
+          - head
         runs-on:
           - ubuntu-latest
           - macos-latest
