@@ -13,5 +13,5 @@
 # limitations under the License.
 
 module FlatBuffers
-  VERSION = "0.0.3"
+  VERSION = "0.0.4"
 end
