@@ -70,6 +70,11 @@ module FlatBuffers
         components.join("::")
       end
 
+      def to_absolute_class_name(outer_namespaces, namespaces, name)
+        namespaces = outer_namespaces + namespaces if outer_namespaces
+        "::#{to_namespaced_class_name(namespaces, name)}"
+      end
+
       def to_constant_name(name)
         to_upper_snake_case(name)
       end
@@ -241,7 +246,9 @@ module FlatBuffers
         if enum.union?
           union = @schema.objects[value.union_type.index]
           *union_namespaces, union_name = denamespace(union.name)
-          klass = "::#{to_namespaced_class_name(union_namespaces, union_name)}"
+          klass = to_absolute_class_name(@outer_namespaces,
+                                         union_namespaces,
+                                         union_name)
           relative_union_namespaces =
             resolve_namespaces(union_namespaces, namespaces)
           path_components = relative_union_namespaces.collect do |ns|
@@ -578,7 +585,7 @@ module FlatBuffers
         to_namespaced_class_name(relative_namespaces, name)
       else
         # We need to use absolute hierarchy
-        "::#{to_namespaced_class_name(namespaces, name)}"
+        to_absolute_class_name(@outer_namespaces, namespaces, name)
       end
     end
   end
