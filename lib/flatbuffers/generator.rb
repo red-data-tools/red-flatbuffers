@@ -457,8 +457,8 @@ module FlatBuffers
           writer << return_default_virtual_code
           writer << ""
           writer << "element_size = #{to_ruby_code(element_size)}"
-          writer <<
-            "@view.unpack_vector(field_offset, element_size) do |element_offset|"
+          unpack_vector = "@view.unpack_vector(field_offset, element_size)"
+          writer << "#{unpack_vector} do |element_offset|"
           writer.indent
           writer << unpack_element_code
           writer.end
