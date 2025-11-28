@@ -40,10 +40,6 @@ Gem::Specification.new do |spec|
     spec.executables = Dir.glob("*")
   end
 
-  spec.add_development_dependency("bundler")
-  spec.add_development_dependency("rake")
-  spec.add_development_dependency("test-unit")
-
   spec.metadata = {
     "bug_tracker_uri" => "#{spec.homepage}/issues",
     "changelog_uri" => "#{spec.homepage}/releases/tag/#{spec.version}",
