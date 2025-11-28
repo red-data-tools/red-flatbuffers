@@ -15,7 +15,8 @@ module FlatBuffers
         field_offset = @view.unpack_virtual_offset(14)
         return nil if field_offset.zero?
 
-        @view.unpack_vector(field_offset, 4) do |element_offset|
+        element_size = 4
+        @view.unpack_vector(field_offset, element_size) do |element_offset|
           @view.unpack_table(KeyValue, element_offset)
         end
       end
@@ -39,7 +40,8 @@ module FlatBuffers
         field_offset = @view.unpack_virtual_offset(16)
         return nil if field_offset.zero?
 
-        @view.unpack_vector(field_offset, 4) do |element_offset|
+        element_size = 4
+        @view.unpack_vector(field_offset, element_size) do |element_offset|
           @view.unpack_string(element_offset)
         end
       end
@@ -48,7 +50,8 @@ module FlatBuffers
         field_offset = @view.unpack_virtual_offset(6)
         return nil if field_offset.zero?
 
-        @view.unpack_vector(field_offset, 4) do |element_offset|
+        element_size = 4
+        @view.unpack_vector(field_offset, element_size) do |element_offset|
           @view.unpack_table(Field, element_offset)
         end
       end

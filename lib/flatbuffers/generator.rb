@@ -87,10 +87,11 @@ module FlatBuffers
           ruby_constant_name = to_constant_name(value.name)
           ruby_value = to_ruby_code(value.value)
           if enum.union?
-            path, klass = resolve_class_name(value.union_type,
-                                             value.union_type.base_type,
-                                             namespaces,
-                                             always_use_absolute_class_name: true)
+            path, klass =
+            resolve_class_name(value.union_type,
+                               value.union_type.base_type,
+                               namespaces,
+                               always_use_absolute_class_name: true)
             # NAME = register("Name", value, "ClassName", "path")
             code << "#{@indent}#{ruby_constant_name} = register(#{ruby_name}, "
             code << "#{ruby_value}, #{to_ruby_code(klass)}, "
@@ -190,9 +191,11 @@ module FlatBuffers
             if object.struct?
               code << field_offset_direct_code
               if enum_type?(type)
-                code << "#{@indent}enum_value = #{unpack_method_name}(field_offset)\n"
+                code <<
+                  "#{@indent}enum_value = #{unpack_method_name}(field_offset)\n"
                 klass = register_requires(type, base_type, namespaces)
-                code << "#{@indent}#{klass}.try_convert(enum_value) || enum_value"
+                code <<
+                  "#{@indent}#{klass}.try_convert(enum_value) || enum_value"
               else
                 code << "#{@indent}#{unpack_method_name}(field_offset)"
               end
@@ -229,7 +232,8 @@ module FlatBuffers
               field_object = @schema.objects[type.index]
               klass = register_requires(type, base_type, namespaces)
               if field_object.struct?
-                code << "#{@indent}@view.unpack_struct(#{klass}, field_offset)\n"
+                code <<
+                  "#{@indent}@view.unpack_struct(#{klass}, field_offset)\n"
               else
                 code << "#{@indent}@view.unpack_table(#{klass}, field_offset)\n"
               end
@@ -263,7 +267,8 @@ module FlatBuffers
             end
             code << <<-CODE
 #{field_offset_virtual_code}
-#{@indent}@view.unpack_vector(field_offset, #{to_ruby_code(element_size)}) do |element_offset|
+#{@indent}element_size = #{to_ruby_code(element_size)}
+#{@indent}@view.unpack_vector(field_offset, element_size) do |element_offset|
 #{@indent}  #{unpack_element_code}
 #{@indent}end
             CODE
