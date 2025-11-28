@@ -29,7 +29,7 @@ Gem::Specification.new do |spec|
 
   readme = File.read("README.md")
   readme.force_encoding("UTF-8")
-  entries = readme.split(/^\#\#\s(.*)$/)
+  entries = readme.split(/^\#+\s(.*)$/)
   description = clean_white_space.call(entries[2])
   spec.summary, spec.description, = description.split(/\n\n+/, 3)
   spec.license = "Apache-2.0"
