@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   description = clean_white_space.call(entries[2])
   spec.summary, spec.description, = description.split(/\n\n+/, 3)
   spec.license = "Apache-2.0"
+  spec.required_ruby_version = ">= 3.1.0"
   spec.files = ["README.md", "#{spec.name}.gemspec"]
   spec.files += Dir.glob("lib/**/*.rb")
   spec.files += Dir.glob("doc/text/*")
