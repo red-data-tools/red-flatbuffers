@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative "data_definable"
-require_relative "inspectable"
+require_relative "view"
 
 module FlatBuffers
-  class Struct
-    extend DataDefinable
-    include Inspectable
-
-    def initialize(view)
-      @view = view
+  class Field
+    attr_reader :name
+    attr_reader :offset
+    attr_reader :base_type
+    attr_reader :index
+    def initialize(name, offset, base_type)
+      @name = name
+      @offset = offset
+      @base_type = base_type
+      @index = View::VTable.compute_field_index(@offset)
     end
   end
 end

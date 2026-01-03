@@ -14,8 +14,59 @@
 
 module FlatBuffers
   class View
-    OFFSET_BYTE_SIZE = 4
-    VIRTUAL_OFFSET_BYTE_SIZE = 2
+    OFFSET_SIZE = IO::Buffer.size_of(:u32)
+    VIRTUAL_OFFSET_SIZE = IO::Buffer.size_of(:u16)
+    IDENTIFIER_SIZE = 4
+
+    module VTable
+      # https://flatbuffers.dev/internals/#tables
+      #
+      # vtable_size: voffset_t (== uint16_t)
+      # table_size: voffset_t (== uint16_t)
+      # field_offsets: [voffset_t (== uint16_t)]
+
+      VTABLE_SIZE_SIZE = VIRTUAL_OFFSET_SIZE
+      TABLE_SIZE_SIZE = VIRTUAL_OFFSET_SIZE
+
+      class << self
+        def compute_size(n_fields)
+          VTABLE_SIZE_SIZE +
+            TABLE_SIZE_SIZE +
+            (VIRTUAL_OFFSET_SIZE * n_fields)
+        end
+
+        def compute_field_index(offset)
+          # offset includes vtable_size and table_size.
+          field_offset = (offset - VTABLE_SIZE_SIZE - TABLE_SIZE_SIZE)
+          field_offset / VIRTUAL_OFFSET_SIZE
+        end
+
+        def serialize(vtable_size, table_size, field_offsets)
+          [vtable_size, table_size, *field_offsets].pack("S<*")
+        end
+      end
+    end
+
+    module Table
+      # https://flatbuffers.dev/internals/#tables
+      #
+      # vtable_offset: soffset_t (== int32_t)
+      # fields: []
+
+      VTABLE_OFFSET_SIZE = OFFSET_SIZE
+
+      class << self
+        def compute_size(fields_size)
+          VTABLE_OFFSET_SIZE + fields_size
+        end
+
+        def serialize(vtable_offset, fields)
+          data = [vtable_offset].pack("l<")
+          data.append_as_bytes(fields)
+          data
+        end
+      end
+    end
 
     def initialize(data, offset, have_vtable: false)
       @data = data
@@ -24,15 +75,15 @@ module FlatBuffers
         vtable_offset = unpack_signed_offset(0)
         @vtable_start = @offset - vtable_offset
         # We assume vtable must have length.
-        @vtable_max_offset = VIRTUAL_OFFSET_BYTE_SIZE
-        @vtable_length = unpack_virtual_offset(0)
-        @vtable_max_offset = @vtable_length - VIRTUAL_OFFSET_BYTE_SIZE
-        @table_length = unpack_virtual_offset(VIRTUAL_OFFSET_BYTE_SIZE)
+        @vtable_max_offset = VTable::VTABLE_SIZE_SIZE
+        @vtable_size = unpack_virtual_offset(0)
+        @vtable_max_offset = @vtable_size
+        @table_size = unpack_virtual_offset(VTable::TABLE_SIZE_SIZE)
       end
     end
 
     def unpack_virtual_offset(vtable_offset)
-      return 0 if vtable_offset > @vtable_max_offset
+      return 0 if (vtable_offset + VIRTUAL_OFFSET_SIZE > @vtable_max_offset)
       @data.get_value(:u16, @vtable_start + vtable_offset)
     end
 
@@ -103,7 +154,7 @@ module FlatBuffers
     def unpack_string(offset)
       value_offset = resolve_indirect(offset)
       length = unpack_offset_raw(value_offset)
-      @data.get_string(value_offset + OFFSET_BYTE_SIZE,
+      @data.get_string(value_offset + OFFSET_SIZE,
                        length)
     end
 
@@ -135,41 +186,11 @@ module FlatBuffers
       length = unpack_offset(relative_vector_offset)
       return nil if length.zero?
 
-      relative_vector_body_offset = relative_vector_offset + OFFSET_BYTE_SIZE
+      relative_vector_body_offset = relative_vector_offset + OFFSET_SIZE
       length.times.collect do |i|
         relative_element_offset =
           relative_vector_body_offset + (element_size * i)
         yield(relative_element_offset)
-      end
-    end
-
-    def unpack_bool_vector(offset, element_size)
-      unpack_vector(offset, element_size) do |relative_element_offset|
-        unpack_bool(relative_element_offset)
-      end
-    end
-
-    def unpack_ubyte_vector(offset, element_size)
-      unpack_vector(offset, element_size) do |relative_element_offset|
-        unpack_ubyte(relative_element_offset)
-      end
-    end
-
-    def unpack_string_vector(offset, element_size)
-      unpack_vector(offset, element_size) do |relative_element_offset|
-        unpack_string(relative_element_offset)
-      end
-    end
-
-    def unpack_table_vector(offset, element_size, klass)
-      unpack_vector(offset, element_size) do |relative_element_offset|
-        unpack_table(klass, relative_element_offset)
-      end
-    end
-
-    def unpack_struct_vector(offset, element_size, klass)
-      unpack_vector(offset, element_size) do |relative_element_offset|
-        unpack_struct(klass, relative_element_offset)
       end
     end
   end

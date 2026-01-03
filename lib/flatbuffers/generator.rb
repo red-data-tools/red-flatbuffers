@@ -338,14 +338,99 @@ module FlatBuffers
       start_modules(writer, namespaces)
 
       if object.struct?
+        is_root_table = false
         parent = "::FlatBuffers::Struct"
       else
-        parent = "::FlatBuffers::Table"
+        is_root_table = (object.name == @schema.root_table&.name)
+        if is_root_table
+          parent = "::FlatBuffers::RootTable"
+        else
+          parent = "::FlatBuffers::Table"
+        end
       end
       generate_documentation(writer, object.documentation)
       writer << "class #{to_class_name(name)} < #{parent}"
       writer.indent
 
+      if is_root_table
+        writer << "class << self"
+        writer.indent
+
+        writer << "def file_identifier"
+        writer.indent
+        writer << to_ruby_code(@schema.file_ident)
+        writer.end
+        writer << ""
+        writer << "def file_extension"
+        writer.indent
+        writer << to_ruby_code(@schema.file_ext)
+        writer.end
+
+        writer.end
+        writer << ""
+      end
+
+      generate_object_fields(writer, object)
+
+      writer << "Data = define_data"
+      writer << ""
+
+      generate_object_methods(writer, object, namespaces)
+
+      writer.end # class
+
+      end_modules(writer, namespaces)
+    end
+
+    def generate_object_fields(writer, object)
+      writer << "FIELDS = ["
+      writer.indent
+
+      offset_sorted_fields = object.fields&.sort_by(&:offset)
+      offset_sorted_fields&.each do |field|
+        # Skip writing deprecated fields altogether.
+        next if field.deprecated?
+
+        method_name = to_method_name(field.name)
+        type = field.type
+        base_type = type.base_type
+        if base_type == Reflection::BaseType::BOOL
+          method_name = "#{method_name}?".delete_prefix("is_")
+        end
+        ruby_offset = to_ruby_code(field.offset)
+        case base_type
+        when Reflection::BaseType::OBJ
+          object = @schema.objects[type.index]
+          *object_namespaces, object_name = denamespace(object.name)
+          klass = to_absolute_class_name(@outer_namespaces,
+                                         object_namespaces,
+                                         object_name)
+          ruby_base_type = to_ruby_code(klass)
+        when Reflection::BaseType::VECTOR
+          element_base_type = type.element
+          if element_base_type == Reflection::BaseType::OBJ
+            object = @schema.objects[type.index]
+            *object_namespaces, object_name = denamespace(object.name)
+            klass = to_absolute_class_name(@outer_namespaces,
+                                           object_namespaces,
+                                           object_name)
+            ruby_base_type = "[#{to_ruby_code(klass)}]"
+          else
+            ruby_base_type = "[:#{to_lower_snake_case(element_base_type.name)}]"
+          end
+        else
+          ruby_base_type = ":#{to_lower_snake_case(base_type.name)}"
+        end
+        writer << ("::FlatBuffers::Field.new(" +
+                   ":#{method_name}, #{ruby_offset}, #{ruby_base_type}),")
+      end
+
+      writer.unindent
+      writer << "]"
+      writer << ""
+    end
+
+    def generate_object_methods(writer, object, namespaces)
       n_processed_fields = 0
       object.fields&.each do |field|
         # Skip writing deprecated fields altogether.
@@ -474,10 +559,6 @@ module FlatBuffers
 
         n_processed_fields += 1
       end
-
-      writer.end # class
-
-      end_modules(writer, namespaces)
     end
 
     def generate_documentation(writer, documentation)

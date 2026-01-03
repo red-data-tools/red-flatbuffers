@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative "data_definable"
-require_relative "inspectable"
-
 module FlatBuffers
-  class Struct
-    extend DataDefinable
-    include Inspectable
-
-    def initialize(view)
-      @view = view
+  module DataDefinable
+    def define_data
+      ::Struct.new(*self::FIELDS.collect(&:name)) do
+        members.each do |member|
+          next unless member.end_with?("?")
+          alias_method :"#{member.to_s.delete_suffix("?")}=", :"#{member}="
+        end
+      end
     end
   end
 end

@@ -12,22 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require_relative "data_definable"
+require_relative "field"
 require_relative "inspectable"
-require_relative "view"
 
 module FlatBuffers
   class Table
     include Inspectable
+    extend DataDefinable
 
-    def initialize(input)
-      if input.is_a?(View)
-        @view = input
-      else
-        if input.is_a?(String)
-          input = IO::Buffer.for(input)
+    class << self
+      def serialize(data, table_serializer)
+        table_serializer.start do
+          self::FIELDS.each do |field|
+            value = data.public_send(field.name)
+            table_serializer.add_field(field, value)
+          end
         end
-        offset = input.get_value(:u32, 0)
-        @view = View.new(input, offset, have_vtable: true)
+      end
+    end
+
+    def initialize(view)
+      @view = view
+    end
+
+    def ==(other)
+      return false unless other.is_a?(self.class)
+      self.class::FIELDS.all? do |field|
+        name = field.name
+        public_send(name) == other.public_send(name)
       end
     end
   end

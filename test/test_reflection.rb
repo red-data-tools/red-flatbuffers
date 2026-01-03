@@ -20,6 +20,11 @@ class TestReflection < Test::Unit::TestCase
     @schema = Reflection::Schema.new(data)
   end
 
+  def test_roundtrip
+    data = Reflection::Schema.serialize(@schema)
+    assert_equal(@schema, Reflection::Schema.new(data))
+  end
+
   class TestSchema < self
     def test_objects
       assert_equal([
