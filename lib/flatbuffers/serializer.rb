@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require_relative "append_as_bytes"
+
 module FlatBuffers
+  using AppendAsBytes if const_defined?(:AppendAsBytes)
+
   class Serializer
     module Alignable
       private

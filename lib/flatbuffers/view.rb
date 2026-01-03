@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require_relative "append_as_bytes"
+
 module FlatBuffers
+  using AppendAsBytes if const_defined?(:AppendAsBytes)
+
   class View
     OFFSET_SIZE = 4 # IO::Buffer.size_of(:u32)
     VIRTUAL_OFFSET_SIZE = 2 # IO::Buffer.size_of(:u16)
