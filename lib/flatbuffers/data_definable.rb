@@ -15,6 +15,8 @@
 module FlatBuffers
   module DataDefinable
     def define_data
+      return Class.new if self::FIELDS.empty?
+
       ::Struct.new(*self::FIELDS.collect(&:name)) do
         members.each do |member|
           next unless member.end_with?("?")
