@@ -39,7 +39,6 @@ module FlatBuffers
       end
 
       def add_field(field, value)
-        @is_target = true if field.name == :name and value == "reflection.Schema"
         if value.nil?
           @field_metadata[field] = {
             inline: true,
