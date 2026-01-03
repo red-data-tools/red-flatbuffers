@@ -14,7 +14,7 @@
 
 # This is for Ruby < 3.4
 unless String.method_defined?(:append_as_bytes)
-  class FlatBuffers
+  module FlatBuffers
     module AppendAsBytes
       refine String do
         def append_as_bytes(*objects)
