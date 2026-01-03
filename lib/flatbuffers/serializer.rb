@@ -17,7 +17,7 @@ module FlatBuffers
     module Alignable
       private
       def align32!(data)
-        padding_size = data.bytesize % IO::Buffer.size_of(:s32)
+        padding_size = data.bytesize % 4 # IO::Buffer.size_of(:s32)
         return if padding_size.zero?
         data.append_as_bytes("\x00" * padding_size)
       end

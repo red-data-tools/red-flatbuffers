@@ -14,8 +14,8 @@
 
 module FlatBuffers
   class View
-    OFFSET_SIZE = IO::Buffer.size_of(:u32)
-    VIRTUAL_OFFSET_SIZE = IO::Buffer.size_of(:u16)
+    OFFSET_SIZE = 4 # IO::Buffer.size_of(:u32)
+    VIRTUAL_OFFSET_SIZE = 2 # IO::Buffer.size_of(:u16)
     IDENTIFIER_SIZE = 4
 
     module VTable
