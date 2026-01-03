@@ -13,7 +13,7 @@ require_relative "service"
 
 module FlatBuffers
   module Reflection
-    class Schema < ::FlatBuffers::RootTable
+    class Schema < ::FlatBuffers::Table
       def advanced_features
         field_offset = @view.unpack_virtual_offset(16)
         if field_offset.zero?

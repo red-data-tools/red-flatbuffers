@@ -1,4 +1,4 @@
-# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+# Copyright 2025-2026 Sutou Kouhei <kou@clear-code.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,6 +33,16 @@ module FlatBuffers
     end
 
     def initialize(view)
+      unless view.is_a?(View)
+        # For backward compatibility
+        if view.is_a?(IO::Buffer)
+          buffer = view
+        else
+          buffer = IO::Buffer.for(view)
+        end
+        offset = buffer.get_value(:u32, 0)
+        view = View.new(buffer, offset, have_vtable: true)
+      end
       @view = view
     end
 
