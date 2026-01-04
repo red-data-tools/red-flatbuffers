@@ -22,10 +22,26 @@ module FlatBuffers
     extend DataDefinable
 
     class << self
+      def table_class
+        self
+      end
+
       def serialize(data, table_serializer)
         table_serializer.start do
-          self::FIELDS.each do |field|
-            value = data.public_send(field.name)
+          self::FIELDS.each do |name, field|
+            if field.base_type == :utype
+              union_field_name = :"#{name.to_s.delete_suffix("_type")}"
+              union_field = self::FIELDS[union_field_name]
+              union_value = data.public_send(union_field_name)
+              if union_value.nil?
+                value = nil
+              else
+                union_class = Object.const_get(union_field.base_type)
+                value = union_class.try_convert(union_value.class.table_class)
+              end
+            else
+              value = data.public_send(name)
+            end
             table_serializer.add_field(field, value)
           end
         end
@@ -48,8 +64,7 @@ module FlatBuffers
 
     def ==(other)
       return false unless other.is_a?(self.class)
-      self.class::FIELDS.all? do |field|
-        name = field.name
+      self.class::FIELDS.keys.all? do |name|
         public_send(name) == other.public_send(name)
       end
     end

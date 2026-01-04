@@ -27,8 +27,80 @@ module FlatBuffers
       end
     end
 
+    module Packable
+      private
+      def pack_value(base_type, value)
+        case base_type
+        when :bool
+          [value ? 1 : 0].pack("c")
+        when :utype
+          [value || 0].pack("C")
+        when :byte
+          [value || 0].pack("c")
+        when :ubyte
+          [value || 0].pack("C")
+        when :short
+          [value || 0].pack("s<")
+        when :ushort
+          [value || 0].pack("S<")
+        when :int
+          [value || 0].pack("l<")
+        when :uint
+          [value || 0].pack("L<")
+        when :long
+          [value || 0].pack("q<")
+        when :ulong
+          [value || 0].pack("Q<")
+        when :float
+          [value || 0.0].pack("e")
+        when :double
+          [value || 0.0].pack("E")
+        when :string
+          value ||= ""
+          packed_value = [value.bytesize].pack("L<")
+          packed_value.append_as_bytes(value)
+          packed_value.append_as_bytes("\x00")
+          align32!(packed_value)
+          packed_value
+        when String
+          klass = Object.const_get(base_type)
+          if klass < Struct
+            sub_struct_serializer = StructSerializer.new(+"".b)
+            klass.serialize(value, sub_struct_serializer)
+          end
+        end
+      end
+    end
+
+    class StructSerializer
+      include Alignable
+      include Packable
+
+      def initialize(buffer)
+        @buffer = buffer
+      end
+
+      def start
+        yield
+        finish
+      end
+
+      def add_field(field, value)
+        packed_value = pack_value(field.base_type, value)
+        @buffer.append_as_bytes(packed_value)
+        unless field.padding.zero?
+          @buffer.append_as_bytes("\x00" * field.padding)
+        end
+      end
+
+      def finish
+        @buffer
+      end
+    end
+
     class TableSerializer
       include Alignable
+      include Packable
 
       def initialize
         @field_metadata = {}
@@ -51,17 +123,37 @@ module FlatBuffers
         else
           case field.base_type
           when String
-            table_class = Object.const_get(field.base_type)
-            sub_table_serializer = TableSerializer.new
-            sub_table_data, sub_table_offset =
-              table_class.serialize(value, sub_table_serializer)
-            @field_metadata[field] = {
-              inline: false,
-              field_value_offset: @field_values.bytesize,
-              value_offset: @values.bytesize + sub_table_offset,
-            }
-            @values.append_as_bytes(sub_table_data)
-            @field_values << [0].pack("L<") # dummy
+            klass = Object.const_get(field.base_type)
+            if klass < Struct
+              @field_metadata[field] = {
+                inline: true,
+                offset: @field_values.bytesize,
+              }
+              sub_struct_serializer = StructSerializer.new(@field_values)
+              klass.serialize(value, sub_struct_serializer)
+            elsif klass < Union
+              sub_table_serializer = TableSerializer.new
+              sub_table_data, sub_table_offset =
+                value.class.table_class.serialize(value, sub_table_serializer)
+              @field_metadata[field] = {
+                inline: false,
+                field_value_offset: @field_values.bytesize,
+                value_offset: @values.bytesize + sub_table_offset,
+              }
+              @values.append_as_bytes(sub_table_data)
+              @field_values << [0].pack("L<") # dummy
+            else
+              sub_table_serializer = TableSerializer.new
+              sub_table_data, sub_table_offset =
+                klass.serialize(value, sub_table_serializer)
+              @field_metadata[field] = {
+                inline: false,
+                field_value_offset: @field_values.bytesize,
+                value_offset: @values.bytesize + sub_table_offset,
+              }
+              @values.append_as_bytes(sub_table_data)
+              @field_values << [0].pack("L<") # dummy
+            end
           when Array
             value_offset = @values.bytesize
             # The number of elements.
@@ -69,23 +161,30 @@ module FlatBuffers
             element_base_type = field.base_type[0]
             case element_base_type
             when String
-              table_class = Object.const_get(element_base_type)
-              offset_base = @values.bytesize
-              # Placeholder for offsets.
-              @values.append_as_bytes(([0] * value.size).pack("L<*")) # dummy
-              value.each do |v|
-                sub_table_serializer = TableSerializer.new
-                sub_table_data, sub_table_offset =
-                  table_class.serialize(v, sub_table_serializer)
+              klass = Object.const_get(element_base_type)
+              if klass < Struct
+                value.each do |v|
+                  sub_struct_serializer = StructSerializer.new(@values)
+                  klass.serialize(v, sub_struct_serializer)
+                end
+              else
+                offset_base = @values.bytesize
+                # Placeholder for offsets.
+                @values.append_as_bytes(([0] * value.size).pack("L<*")) # dummy
+                value.each do |v|
+                  sub_table_serializer = TableSerializer.new
+                  sub_table_data, sub_table_offset =
+                    klass.serialize(v, sub_table_serializer)
 
-                element_offset = @values.bytesize + sub_table_offset
-                # Update offset placeholder.
-                relative_element_offset = element_offset - offset_base
-                @values[offset_base, View::OFFSET_SIZE] =
-                  [relative_element_offset].pack("L<")
-                offset_base += View::OFFSET_SIZE
+                  element_offset = @values.bytesize + sub_table_offset
+                  # Update offset placeholder.
+                  relative_element_offset = element_offset - offset_base
+                  @values[offset_base, View::OFFSET_SIZE] =
+                    [relative_element_offset].pack("L<")
+                  offset_base += View::OFFSET_SIZE
 
-                @values.append_as_bytes(sub_table_data)
+                  @values.append_as_bytes(sub_table_data)
+                end
               end
               @field_metadata[field] = {
                 inline: false,
@@ -191,34 +290,6 @@ module FlatBuffers
         data.append_as_bytes(@values)
         table_offset = vtable_size
         [data, table_offset]
-      end
-
-      private
-      def pack_value(base_type, value)
-        case base_type
-        when :bool
-          [value ? 1 : 0].pack("c")
-        when :byte
-          [value].pack("c")
-        when :ushort
-          [value].pack("S<")
-        when :int
-          [value].pack("l<")
-        when :uint
-          [value].pack("L<")
-        when :long
-          [value].pack("q<")
-        when :ulong
-          [value].pack("Q<")
-        when :double
-          [value].pack("E")
-        when :string
-          packed_value = [value.bytesize].pack("L<")
-          packed_value.append_as_bytes(value)
-          packed_value.append_as_bytes("\x00")
-          align32!(packed_value)
-          packed_value
-        end
       end
     end
 

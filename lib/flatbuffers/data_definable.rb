@@ -14,15 +14,22 @@
 
 module FlatBuffers
   module DataDefinable
-    def define_data
-      return Class.new if self::FIELDS.empty?
-
-      ::Struct.new(*self::FIELDS.collect(&:name)) do
-        members.each do |member|
-          next unless member.end_with?("?")
-          alias_method :"#{member.to_s.delete_suffix("?")}=", :"#{member}="
+    def define_data_class
+      if self::FIELDS.empty?
+        klass = Class.new
+      else
+        klass = ::Struct.new(*self::FIELDS.keys) do
+          members.each do |member|
+            next unless member.end_with?("?")
+            alias_method :"#{member.to_s.delete_suffix("?")}=", :"#{member}="
+          end
         end
       end
+      table_class = self
+      klass.singleton_class.define_method(:table_class) do
+        table_class
+      end
+      klass
     end
   end
 end

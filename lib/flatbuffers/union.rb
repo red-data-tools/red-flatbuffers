@@ -1,4 +1,4 @@
-# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+# Copyright 2025-2026 Sutou Kouhei <kou@clear-code.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,13 @@ module FlatBuffers
         when self
           value
         else
-          nil
+          if value < Table
+            @name_to_union.values.find do |union|
+              union.table_class == value
+            end
+          else
+            nil
+          end
         end
       end
 

@@ -1,4 +1,4 @@
-# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+# Copyright 2025-2026 Sutou Kouhei <kou@clear-code.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,46 @@ class TestMonster < Test::Unit::TestCase
       Helper::Path.flatbuffers_repository + "tests" + "monsterdata_test.mon"
     data = data_mon.open("rb", &:read)
     @monster = MyGame::Example::Monster.new(data)
+  end
+
+  class TableComparer
+    attr_reader :table
+    def initialize(table)
+      @table = table
+    end
+
+    def ==(other)
+      return true if @table == other.table
+      @table.class::FIELDS.keys.all? do |name|
+        value = @table.public_send(name)
+        other_value = other.table.public_send(name)
+        if value.is_a?(Float) and other_value.is_a?(Float)
+          if value.nan? and other_value.nan?
+            true
+          elsif value.infinite? or other_value.infinite?
+            value == other_value
+          else
+            if value == 3.14159
+              # This is for `3.14159 != [3.14159].pack("e").unpack1("e")`.
+              # `[3.14159].pack("e").unpack1("e")` is `3.141590118408203`.
+              value = 3.141590118408203
+            end
+            value == other_value
+          end
+        elsif value.is_a?(FlatBuffers::Table) and
+             other_value.is_a?(FlatBuffers::Table)
+          TableComparer.new(value) == TableComparer.new(other_value)
+        else
+          value == other_value
+        end
+      end
+    end
+  end
+
+  def test_roundtrip
+    data = MyGame::Example::Monster.serialize(@monster)
+    assert_equal(TableComparer.new(@monster),
+                 TableComparer.new(MyGame::Example::Monster.new(data)))
   end
 
   def test_pos

@@ -1,4 +1,4 @@
-# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+# Copyright 2025-2026 Sutou Kouhei <kou@clear-code.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,26 @@ module FlatBuffers
     extend DataDefinable
     include Inspectable
 
+    class << self
+      def serialize(data, struct_serializer)
+        struct_serializer.start do
+          self::FIELDS.each do |name, field|
+            value = data&.public_send(name)
+            struct_serializer.add_field(field, value)
+          end
+        end
+      end
+    end
+
     def initialize(view)
       @view = view
+    end
+
+    def ==(other)
+      return false unless other.is_a?(self.class)
+      self.class::FIELDS.keys.all? do |name|
+        public_send(name) == other.public_send(name)
+      end
     end
   end
 end

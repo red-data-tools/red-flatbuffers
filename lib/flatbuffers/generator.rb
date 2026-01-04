@@ -372,7 +372,7 @@ module FlatBuffers
 
       generate_object_fields(writer, object)
 
-      writer << "Data = define_data"
+      writer << "Data = define_data_class"
       writer << ""
 
       generate_object_methods(writer, object, namespaces)
@@ -383,11 +383,11 @@ module FlatBuffers
     end
 
     def generate_object_fields(writer, object)
-      writer << "FIELDS = ["
+      writer << "FIELDS = {"
       writer.indent
 
       offset_sorted_fields = object.fields&.sort_by(&:offset)
-      offset_sorted_fields&.each do |field|
+      offset_sorted_fields&.each_with_index do |field, index|
         # Skip writing deprecated fields altogether.
         next if field.deprecated?
 
@@ -397,6 +397,7 @@ module FlatBuffers
         if base_type == Reflection::BaseType::BOOL
           method_name = "#{method_name}?".delete_prefix("is_")
         end
+        ruby_index = to_ruby_code(index)
         ruby_offset = to_ruby_code(field.offset)
         case base_type
         when Reflection::BaseType::OBJ
@@ -405,6 +406,13 @@ module FlatBuffers
           klass = to_absolute_class_name(@outer_namespaces,
                                          object_namespaces,
                                          object_name)
+          ruby_base_type = to_ruby_code(klass)
+        when Reflection::BaseType::UNION
+          union = @schema.enums[type.index]
+          *union_namespaces, union_name = denamespace(union.name)
+          klass = to_absolute_class_name(@outer_namespaces,
+                                         union_namespaces,
+                                         union_name)
           ruby_base_type = to_ruby_code(klass)
         when Reflection::BaseType::VECTOR
           element_base_type = type.element
@@ -421,12 +429,14 @@ module FlatBuffers
         else
           ruby_base_type = ":#{to_lower_snake_case(base_type.name)}"
         end
-        writer << ("::FlatBuffers::Field.new(" +
-                   ":#{method_name}, #{ruby_offset}, #{ruby_base_type}),")
+        ruby_padding = to_ruby_code(field.padding)
+        writer << ("#{method_name}: ::FlatBuffers::Field.new(" +
+                   ":#{method_name}, #{ruby_index}, " +
+                   "#{ruby_offset}, #{ruby_base_type}, #{ruby_padding}),")
       end
 
       writer.unindent
-      writer << "]"
+      writer << "}"
       writer << ""
     end
 

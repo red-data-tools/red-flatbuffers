@@ -17,14 +17,16 @@ require_relative "view"
 module FlatBuffers
   class Field
     attr_reader :name
+    attr_reader :index
     attr_reader :offset
     attr_reader :base_type
-    attr_reader :index
-    def initialize(name, offset, base_type)
+    attr_reader :padding
+    def initialize(name, index, offset, base_type, padding)
       @name = name
+      @index = index
       @offset = offset
       @base_type = base_type
-      @index = View::VTable.compute_field_index(@offset)
+      @padding = padding
     end
   end
 end
