@@ -373,7 +373,6 @@ module FlatBuffers
       generate_object_fields(writer, object)
 
       writer << "Data = define_data_class"
-      writer << ""
 
       generate_object_methods(writer, object, namespaces)
 
@@ -441,12 +440,11 @@ module FlatBuffers
     end
 
     def generate_object_methods(writer, object, namespaces)
-      n_processed_fields = 0
       object.fields&.each do |field|
         # Skip writing deprecated fields altogether.
         next if field.deprecated?
 
-        writer << "" if n_processed_fields > 0
+        writer << ""
 
         method_name = to_method_name(field.name)
         type = field.type
@@ -566,8 +564,6 @@ module FlatBuffers
           writer.end
         end
         writer.end
-
-        n_processed_fields += 1
       end
     end
 
