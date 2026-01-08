@@ -19,8 +19,8 @@ on:
       - "dependabot/**"
   pull_request:
 jobs:
-  test:
-    name: Test
+  unit:
+    name: Unit test
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -65,3 +65,86 @@ jobs:
       - name: Test
         run: |
           bundle exec rake
+  apache-arrow:
+    name: Apache Arrow
+    runs-on: ubuntu-latest
+    env:
+      GI_TYPELIB_PATH: /tmp/local/lib/girepository-1.0
+      LD_LIBRARY_PATH: /tmp/local/lib
+      PKG_CONFIG_PATH: /tmp/local/lib/pkgconfig
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: apache/arrow
+          path: apache-arrow
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ruby
+          bundler-cache: true
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y -V \
+            ccache \
+            flatbuffers-compiler \
+            rapidjson-dev \
+            libgirepository1.0-dev \
+            libxsimd-dev \
+            meson
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: .ccache/
+          key: ccache-apache-arrow-${{ hashFiles('apache-arrow/cpp/**', 'apache-arrow/c_glib/**', 'apache-arrow/ruby/red-arrow/ext/**') }}
+          restore-keys: ccache-apache-arrow-
+      - name: Install Red FlatBuffers
+        run: |
+          rake install
+      - name: Configure Apache Arrow C++
+        run: |
+          cmake \
+            -S apache-arrow/cpp \
+            -B apache-arrow/cpp.build \
+            --preset ninja-debug-minimal \
+            -D ARROW_ACERO=ON \
+            -D ARROW_COMPUTE=ON \
+            -D ARROW_CSV=ON \
+            -D ARROW_FILESYSTEM=ON \
+            -D ARROW_JSON=ON \
+            -D CMAKE_INSTALL_PREFIX=/tmp/local \
+            -D CMAKE_INSTALL_LIBDIR=lib
+      - name: Build Apache Arrow C++
+        run: |
+          cmake --build apache-arrow/cpp.build
+      - name: Install Apache Arrow C++
+        run: |
+          cmake --install apache-arrow/cpp.build
+      - name: Configure Apache Arrow GLib
+        run: |
+          meson setup \
+            --cmake-prefix-path=/tmp/local \
+            --libdir=lib \
+            --pkg-config-path=/tmp/local/lib/pkgconfig \
+            --prefix=/tmp/local \
+            apache-arrow/c_glib.build \
+            apache-arrow/c_glib
+      - name: Build Apache Arrow GLib
+        run: |
+          meson compile -C apache-arrow/c_glib.build
+      - name: Install Apache Arrow C++
+        run: |
+          meson install -C apache-arrow/c_glib.build
+      - name: Install Red Arrow dependencies
+        run: |
+          cd apache-arrow/ruby/red-arrow
+          bundle install -j$(nproc)
+      - name: Build Red Arrow
+        run: |
+          cd apache-arrow/ruby/red-arrow/ext/arrow
+          ruby extconf.rb --eanble-debug-build
+          make -j$(nproc)
+      - name: Run Red ArrowFormat tests
+        run: |
+          cd apache-arrow/ruby/red-arrow-format
+          ruby test/run.rb
