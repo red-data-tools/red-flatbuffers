@@ -12,21 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require_relative "alignable"
 require_relative "append_as_bytes"
 
 module FlatBuffers
   using AppendAsBytes if const_defined?(:AppendAsBytes)
 
   class Serializer
-    module Alignable
-      private
-      def align32!(data)
-        padding_size = data.bytesize % 4 # IO::Buffer.size_of(:s32)
-        return if padding_size.zero?
-        data.append_as_bytes("\x00" * padding_size)
-      end
-    end
-
     module Packable
       private
       def pack_value(base_type, value)
@@ -60,7 +52,6 @@ module FlatBuffers
           packed_value = [value.bytesize].pack("L<")
           packed_value.append_as_bytes(value)
           packed_value.append_as_bytes("\x00")
-          align32!(packed_value)
           packed_value
         when String
           klass = Object.const_get(base_type)
@@ -89,7 +80,7 @@ module FlatBuffers
         packed_value = pack_value(field.base_type, value)
         @buffer.append_as_bytes(packed_value)
         unless field.padding.zero?
-          @buffer.append_as_bytes("\x00" * field.padding)
+          pad!(@buffer, field.padding)
         end
       end
 
@@ -243,7 +234,7 @@ module FlatBuffers
       end
 
       def finish
-        align32!(@field_values)
+        align!(@field_values, View::OFFSET_SIZE)
         table_size = View::Table.compute_size(@field_values.bytesize)
 
         field_offset_base =
