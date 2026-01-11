@@ -95,7 +95,7 @@ jobs:
       - name: Cache ccache
         uses: actions/cache@v5
         with:
-          path: .ccache/
+          path: .cache/ccache/
           key: ccache-apache-arrow-${{ hashFiles('apache-arrow/cpp/**', 'apache-arrow/c_glib/**', 'apache-arrow/ruby/red-arrow/ext/**') }}
           restore-keys: ccache-apache-arrow-
       - name: Install Red FlatBuffers
