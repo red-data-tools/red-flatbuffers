@@ -23,7 +23,7 @@ module FlatBuffers
 
     private
     def compute_padding_size(size, alignment_byte)
-      size % alignment_byte
+      (alignment_byte - (size & (alignment_byte - 1))) & (alignment_byte - 1)
     end
 
     def pad!(data, padding_size)
