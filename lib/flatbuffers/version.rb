@@ -1,4 +1,4 @@
-# Copyright 2025 Sutou Kouhei <kou@clear-code.com>
+# Copyright 2025-2026 Sutou Kouhei <kou@clear-code.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,5 +13,5 @@
 # limitations under the License.
 
 module FlatBuffers
-  VERSION = "0.0.4"
+  VERSION = "0.0.5"
 end
