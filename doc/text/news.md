@@ -1,5 +1,11 @@
 # News
 
+## 0.0.4 - 2026-01-12
+
+### Improvements
+
+  * Added support for serializing.
+
 ## 0.0.3 - 2025-11-28
 
 ### Improvements
