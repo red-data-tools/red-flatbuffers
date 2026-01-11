@@ -15,8 +15,9 @@
 require_relative "append_as_bytes"
 
 module FlatBuffers
+  using AppendAsBytes if const_defined?(:AppendAsBytes)
+
   module Alignable
-    using AppendAsBytes if const_defined?(:AppendAsBytes)
 
     LARGEST_PADDING = "\x00" * 7
 
