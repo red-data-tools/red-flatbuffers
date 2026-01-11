@@ -26,9 +26,13 @@ module FlatBuffers
       (alignment_byte - (size & (alignment_byte - 1))) & (alignment_byte - 1)
     end
 
+    def padding(padding_size)
+      LARGEST_PADDING[0, padding_size]
+    end
+
     def pad!(data, padding_size)
       return if padding_size.zero?
-      data.append_as_bytes(LARGEST_PADDING[0, padding_size])
+      data.append_as_bytes(padding(padding_size))
     end
 
     def align!(data, alignment_byte)
