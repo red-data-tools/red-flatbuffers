@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative "append_as_bytes"
+require_relative "alignable"
 
 module FlatBuffers
   using AppendAsBytes if const_defined?(:AppendAsBytes)
@@ -33,10 +33,14 @@ module FlatBuffers
       TABLE_SIZE_SIZE = VIRTUAL_OFFSET_SIZE
 
       class << self
+        include Alignable
+
         def compute_size(n_fields)
-          VTABLE_SIZE_SIZE +
-            TABLE_SIZE_SIZE +
-            (VIRTUAL_OFFSET_SIZE * n_fields)
+          size = VTABLE_SIZE_SIZE +
+                 TABLE_SIZE_SIZE +
+                 (VIRTUAL_OFFSET_SIZE * n_fields)
+          size += compute_padding_size(size, LARGEST_ALIGNMENT_SIZE)
+          size
         end
 
         def compute_field_index(offset)
@@ -46,7 +50,9 @@ module FlatBuffers
         end
 
         def serialize(vtable_size, table_size, field_offsets)
-          [vtable_size, table_size, *field_offsets].pack("S<*")
+          data = [vtable_size, table_size, *field_offsets].pack("S<*")
+          align!(data, LARGEST_ALIGNMENT_SIZE)
+          data
         end
       end
     end
@@ -60,18 +66,24 @@ module FlatBuffers
       VTABLE_OFFSET_SIZE = OFFSET_SIZE
 
       class << self
+        include Alignable
+
         def compute_size(fields_size)
-          VTABLE_OFFSET_SIZE + fields_size
+          size = VTABLE_OFFSET_SIZE + fields_size
+          size += compute_padding_size(size, LARGEST_ALIGNMENT_SIZE)
+          size
         end
 
         def serialize(vtable_offset, fields)
           data = [vtable_offset].pack("l<")
           data.append_as_bytes(fields)
+          align!(data, LARGEST_ALIGNMENT_SIZE)
           data
         end
       end
     end
 
+    attr_reader :offset
     def initialize(data, offset, have_vtable: false)
       @data = data
       @offset = offset

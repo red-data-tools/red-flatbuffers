@@ -58,8 +58,12 @@ class TestMonster < Test::Unit::TestCase
 
   def test_roundtrip
     data = MyGame::Example::Monster.serialize(@monster)
+    monster = MyGame::Example::Monster.new(data)
     assert_equal(TableComparer.new(@monster),
-                 TableComparer.new(MyGame::Example::Monster.new(data)))
+                 TableComparer.new(monster))
+
+    verifier = FlatBuffers::Verifier.new(monster)
+    verifier.verify
   end
 
   def test_pos

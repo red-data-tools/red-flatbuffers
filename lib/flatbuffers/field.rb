@@ -28,5 +28,30 @@ module FlatBuffers
       @base_type = base_type
       @padding = padding
     end
+
+    def alignment_size
+      case @base_type
+      when :utype
+        4
+      when :bool, :byte, :ubyte
+        1
+      when :short, :ushort
+        2
+      when :int, :uint
+        4
+      when :long, :ulong
+        8
+      when :float
+        4
+      when :double
+        8
+      when :string
+        4
+      when String
+        4
+      when Array
+        4
+      end
+    end
   end
 end

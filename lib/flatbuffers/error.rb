@@ -12,27 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-require_relative "append_as_bytes"
-
 module FlatBuffers
-  using AppendAsBytes if const_defined?(:AppendAsBytes)
+  class Error < StandardError
+  end
 
-  module Alignable
-    LARGEST_ALIGNMENT_SIZE = 8 # IO::Buffer.size_of(:u64)
-    LARGEST_PADDING = "\x00" * 7
-
-    private
-    def compute_padding_size(size, alignment_byte)
-      (alignment_byte - (size & (alignment_byte - 1))) & (alignment_byte - 1)
-    end
-
-    def pad!(data, padding_size)
-      return if padding_size.zero?
-      data.append_as_bytes(LARGEST_PADDING[0, padding_size])
-    end
-
-    def align!(data, alignment_byte)
-      pad!(data, compute_padding_size(data.bytesize, alignment_byte))
-    end
+  class VerificationError < Error
   end
 end

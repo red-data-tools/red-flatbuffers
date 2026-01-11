@@ -14,8 +14,10 @@
 
 require_relative "flatbuffers/serializer"
 require_relative "flatbuffers/enum"
+require_relative "flatbuffers/error"
 require_relative "flatbuffers/flags"
 require_relative "flatbuffers/struct"
 require_relative "flatbuffers/root_table"
 require_relative "flatbuffers/union"
+require_relative "flatbuffers/verifier"
 require_relative "flatbuffers/version"

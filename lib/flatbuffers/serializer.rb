@@ -13,7 +13,6 @@
 # limitations under the License.
 
 require_relative "alignable"
-require_relative "append_as_bytes"
 
 module FlatBuffers
   using AppendAsBytes if const_defined?(:AppendAsBytes)
@@ -93,14 +92,16 @@ module FlatBuffers
       include Alignable
       include Packable
 
+      DUMMY_OFFSET = [0].pack("L<")
+
       def initialize
         @field_metadata = {}
-        @field_values = +"".b
+        # vtable_offset. This is replaced later.
+        @table = DUMMY_OFFSET.dup
         @values = +"".b
       end
 
       def start
-        @field_offsets = []
         yield
         finish
       end
@@ -114,38 +115,43 @@ module FlatBuffers
         else
           case field.base_type
           when String
+            align!(@table, View::OFFSET_SIZE)
             klass = Object.const_get(field.base_type)
             if klass < Struct
               @field_metadata[field] = {
                 inline: true,
-                offset: @field_values.bytesize,
+                offset: @table.bytesize,
               }
-              sub_struct_serializer = StructSerializer.new(@field_values)
+              sub_struct_serializer = StructSerializer.new(@table)
               klass.serialize(value, sub_struct_serializer)
             elsif klass < Union
+              align!(@values, LARGEST_ALIGNMENT_SIZE)
               sub_table_serializer = TableSerializer.new
               sub_table_data, sub_table_offset =
                 value.class.table_class.serialize(value, sub_table_serializer)
               @field_metadata[field] = {
                 inline: false,
-                field_value_offset: @field_values.bytesize,
+                table_offset: @table.bytesize,
                 value_offset: @values.bytesize + sub_table_offset,
               }
               @values.append_as_bytes(sub_table_data)
-              @field_values << [0].pack("L<") # dummy
+              @table.append_as_bytes(DUMMY_OFFSET) # Replaced later
             else
+              align!(@values, LARGEST_ALIGNMENT_SIZE)
               sub_table_serializer = TableSerializer.new
               sub_table_data, sub_table_offset =
                 klass.serialize(value, sub_table_serializer)
               @field_metadata[field] = {
                 inline: false,
-                field_value_offset: @field_values.bytesize,
+                table_offset: @table.bytesize,
                 value_offset: @values.bytesize + sub_table_offset,
               }
               @values.append_as_bytes(sub_table_data)
-              @field_values << [0].pack("L<") # dummy
+              @table.append_as_bytes(DUMMY_OFFSET) # Replaced later
             end
           when Array
+            align!(@table, View::OFFSET_SIZE)
+            align!(@values, View::OFFSET_SIZE)
             value_offset = @values.bytesize
             # The number of elements.
             @values.append_as_bytes([value.size].pack("L<"))
@@ -161,7 +167,10 @@ module FlatBuffers
               else
                 offset_base = @values.bytesize
                 # Placeholder for offsets.
-                @values.append_as_bytes(([0] * value.size).pack("L<*")) # dummy
+                value.size.times do
+                  @values.append_as_bytes(DUMMY_OFFSET) # Replaced later
+                end
+                align!(@values, LARGEST_ALIGNMENT_SIZE)
                 value.each do |v|
                   sub_table_serializer = TableSerializer.new
                   sub_table_data, sub_table_offset =
@@ -179,13 +188,15 @@ module FlatBuffers
               end
               @field_metadata[field] = {
                 inline: false,
-                field_value_offset: @field_values.bytesize,
+                table_offset: @table.bytesize,
                 value_offset: value_offset,
               }
             when :string
               offset_base = @values.bytesize
               # Placeholder for offsets.
-              @values.append_as_bytes(([0] * value.size).pack("L<*")) # dummy
+              value.size.times do
+                @values.append_as_bytes(DUMMY_OFFSET) # Replaced later
+              end
               value.each do |v|
                 packed_value = pack_value(element_base_type, v)
 
@@ -200,7 +211,7 @@ module FlatBuffers
               end
               @field_metadata[field] = {
                 inline: false,
-                field_value_offset: @field_values.bytesize,
+                table_offset: @table.bytesize,
                 value_offset: value_offset,
               }
             else
@@ -210,74 +221,84 @@ module FlatBuffers
               end
               @field_metadata[field] = {
                 inline: false,
-                field_value_offset: @field_values.bytesize,
+                table_offset: @table.bytesize,
                 value_offset: value_offset,
               }
             end
-            @field_values << [0].pack("L<") # dummy
+            @table.append_as_bytes(DUMMY_OFFSET) # Replaced later
           when :string
+            align!(@table, View::OFFSET_SIZE)
             @field_metadata[field] = {
               inline: false,
-              field_value_offset: @field_values.bytesize,
+              table_offset: @table.bytesize,
               value_offset: @values.bytesize,
             }
             @values.append_as_bytes(pack_value(field.base_type, value))
-            @field_values << [0].pack("L<") # dummy
+            @table.append_as_bytes(DUMMY_OFFSET) # Replaced later
           else
+            align!(@table, field.alignment_size)
             @field_metadata[field] = {
               inline: true,
-              offset: @field_values.bytesize,
+              offset: @table.bytesize,
             }
-            @field_values << pack_value(field.base_type, value)
+            @table.append_as_bytes(pack_value(field.base_type, value))
           end
         end
       end
 
       def finish
-        align!(@field_values, View::OFFSET_SIZE)
-        table_size = View::Table.compute_size(@field_values.bytesize)
+        vtable_size = View::VTable.compute_size(@field_metadata.size)
+        align!(@table, LARGEST_ALIGNMENT_SIZE)
+        table_size = @table.bytesize
 
-        field_offset_base =
-          View::VTable::VTABLE_SIZE_SIZE +
-          View::VTable::TABLE_SIZE_SIZE
+        field_offsets = []
         @field_metadata.each do |field, metadata|
-          if metadata[:inline]
+          if metadata[:inline] # Scalar or struct
             offset = metadata[:offset]
             if offset.nil?
-              @field_offsets[field.index] = 0
+              field_offsets[field.index] = 0
             else
-              @field_offsets[field.index] = field_offset_base + offset
+              field_offsets[field.index] = offset
             end
-          else
-            # Table, string or vector.
-            field_value_offset = metadata[:field_value_offset]
-            field_offset = field_offset_base + field_value_offset
-            # Offset in `@values`.
+          else # Table, string or vector.
+            # |vtable|@table|@values|
+            #
+            # `vtable:` |vtable_size|table_size|field_offsets|
+            # `field_offsets` uses relative offset from the start of
+            # `vtable`.
+            #
+            # `@table`: |vtable_offset|fields|
+            # `fields` uses relative offset from itself.
+
+            # The offset in `fields`. This is relative from the start
+            # of `@table`.
+            table_offset = metadata[:table_offset]
+            # The offset in `@values`. This is relative from the start
+            # of `@table`.
             value_offset = metadata[:value_offset]
-            # Offset in `@field_values` is relative from `offset_base`.
-            offset_base = table_size - field_offset
-            # `@values` is placed just after `@field_values`.
-            # Offset in `@values` is relative from `offset`.
-            offset = offset_base + value_offset
-            @field_values[field_value_offset, View::OFFSET_SIZE] =
+            # `@values` is placed just after `@table`.
+            # `offset` is relative from `table_offset`.
+            offset = table_size - table_offset + value_offset
+            @table[table_offset, View::Table::VTABLE_OFFSET_SIZE] =
               [offset].pack("L<")
-            @field_offsets[field.index] = field_offset
+            field_offsets[field.index] = table_offset
           end
         end
-        @field_offsets.each_with_index do |offset, i|
-          @field_offsets[i] = 0 if offset.nil?
+        field_offsets.each_with_index do |offset, i|
+          field_offsets[i] = 0 if offset.nil?
         end
 
-        vtable_size = View::VTable.compute_size(@field_offsets.size)
-
         data = +"".b
-        vtable = View::VTable.serialize(vtable_size, table_size, @field_offsets)
+        vtable = View::VTable.serialize(vtable_size,
+                                        table_size,
+                                        field_offsets)
         data.append_as_bytes(vtable)
         # We don't need "-" here because vtable_offset is subtracted
         # (not added).
         vtable_offset = vtable_size
-        table = View::Table.serialize(vtable_offset, @field_values)
-        data.append_as_bytes(table)
+        @table[0, View::Table::VTABLE_OFFSET_SIZE] = [vtable_offset].pack("l<")
+        data.append_as_bytes(@table)
+        align!(@values, LARGEST_ALIGNMENT_SIZE)
         data.append_as_bytes(@values)
         table_offset = vtable_size
         [data, table_offset]
@@ -297,10 +318,12 @@ module FlatBuffers
       table, table_offset = yield(table_serializer)
       header_size = View::OFFSET_SIZE
       header_size += View::IDENTIFIER_SIZE if @identifier
+      header_size += compute_padding_size(header_size, LARGEST_ALIGNMENT_SIZE)
       root_table_offset = header_size + table_offset
       data = [root_table_offset].pack("L<")
-      data << @identifier if @identifier
-      data << table
+      data.append_as_bytes(@identifier) if @identifier
+      align!(data, LARGEST_ALIGNMENT_SIZE)
+      data.append_as_bytes(table)
       data
     end
 

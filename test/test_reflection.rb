@@ -22,7 +22,11 @@ class TestReflection < Test::Unit::TestCase
 
   def test_roundtrip
     data = Reflection::Schema.serialize(@schema)
-    assert_equal(@schema, Reflection::Schema.new(data))
+    schema = Reflection::Schema.new(data)
+    assert_equal(@schema, schema)
+
+    verifier = FlatBuffers::Verifier.new(schema)
+    verifier.verify
   end
 
   class TestSchema < self
