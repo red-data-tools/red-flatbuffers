@@ -296,6 +296,7 @@ module FlatBuffers
     include Alignable
 
     def initialize(identifier)
+      identifier = nil if identifier.is_a?(String) and identifier.empty?
       validate_identifier(identifier)
       @identifier = identifier
     end
