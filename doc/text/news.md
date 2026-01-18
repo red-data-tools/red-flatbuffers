@@ -1,5 +1,11 @@
 # News
 
+## 0.0.5 - 2026-01-19
+
+### Improvements
+
+  * Increased max alignment size to 64 bit.
+
 ## 0.0.4 - 2026-01-12
 
 ### Improvements
