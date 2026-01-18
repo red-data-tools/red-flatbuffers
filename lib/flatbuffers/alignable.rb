@@ -18,8 +18,9 @@ module FlatBuffers
   using AppendAsBytes if const_defined?(:AppendAsBytes)
 
   module Alignable
-    LARGEST_ALIGNMENT_SIZE = 8 # IO::Buffer.size_of(:u64)
-    LARGEST_PADDING = "\x00" * 7
+    # Apache Arrow suggests 64 byte alignment.
+    LARGEST_ALIGNMENT_SIZE = 64
+    LARGEST_PADDING = "\x00" * (LARGEST_ALIGNMENT_SIZE - 1)
 
     private
     def compute_padding_size(size, alignment_byte)
