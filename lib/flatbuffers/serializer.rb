@@ -120,6 +120,7 @@ module FlatBuffers
             add_field_array(field, value)
           when :string
             align!(@table, View::OFFSET_SIZE)
+            align!(@values, View::OFFSET_SIZE)
             @field_metadata[field] = {
               inline: false,
               table_offset: @table.bytesize,
@@ -260,7 +261,7 @@ module FlatBuffers
             value.each do |v|
               sub_table_serializer = TableSerializer.new
               sub_table_data, sub_table_offset =
-              klass.serialize(v, sub_table_serializer)
+                klass.serialize(v, sub_table_serializer)
 
               element_offset = @values.bytesize + sub_table_offset
               # Update offset placeholder.
