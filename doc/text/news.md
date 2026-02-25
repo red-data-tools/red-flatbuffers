@@ -1,5 +1,11 @@
 # News
 
+## 0.0.6 - 2026-02-25
+
+### Fixes
+
+  * Added missing alignment of string values.
+
 ## 0.0.5 - 2026-01-19
 
 ### Improvements
