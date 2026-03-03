@@ -1,5 +1,11 @@
 # News
 
+## 0.0.7 - 2026-03-03
+
+### Improvements
+
+  * Aligned vector body with 8 byte for FlatCC verification.
+
 ## 0.0.6 - 2026-02-25
 
 ### Fixes
