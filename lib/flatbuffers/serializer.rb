@@ -247,8 +247,10 @@ module FlatBuffers
         vector_body_alignment = 8
         vector_length_pack_string = "L<"
         vector_length_size = 4
-        align!(@values, vector_body_alignment)
-        pad!(@values, vector_body_alignment - vector_length_size)
+        align!(@values, vector_length_size)
+        unless @values.bytesize % vector_body_alignment == vector_length_size
+          pad!(@values, vector_body_alignment - vector_length_size)
+        end
         value_offset = @values.bytesize
         @values.append_as_bytes([value.size].pack(vector_length_pack_string))
 
