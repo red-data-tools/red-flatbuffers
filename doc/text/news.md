@@ -1,5 +1,11 @@
 # News
 
+## 0.0.8 - 2026-03-04
+
+### Improvements
+
+  * Reduced needless padding for vector.
+
 ## 0.0.7 - 2026-03-03
 
 ### Improvements
