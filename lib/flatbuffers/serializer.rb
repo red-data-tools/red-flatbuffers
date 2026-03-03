@@ -238,10 +238,20 @@ module FlatBuffers
 
       def add_field_array(field, value)
         align!(@table, View::OFFSET_SIZE)
-        align!(@values, View::OFFSET_SIZE)
+
+        # Vector body must be aligned with 8 byte. Vector is
+        # serialized as |length|body|. `length` is uoffset_t
+        # (uint32_t) and its size is 4 byte. So we need to align
+        # `@values` with 8 byte and pad the first 4 byte:
+        # |4 byte padding|length (4 byte)|body (8 byte aligned)|
+        vector_body_alignment = 8
+        vector_length_pack_string = "L<"
+        vector_length_size = 4
+        align!(@values, vector_body_alignment)
+        pad!(@values, vector_body_alignment - vector_length_size)
         value_offset = @values.bytesize
-        # The number of elements.
-        @values.append_as_bytes([value.size].pack("L<"))
+        @values.append_as_bytes([value.size].pack(vector_length_pack_string))
+
         element_base_type = field.base_type[0]
         case element_base_type
         when String
