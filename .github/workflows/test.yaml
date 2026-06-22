@@ -38,8 +38,8 @@ jobs:
     env:
       FLATBUFFERS_REPOSITORY: ${{ github.workspace }}/flatbuffers
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           repository: google/flatbuffers
           path: flatbuffers
@@ -73,8 +73,8 @@ jobs:
       LD_LIBRARY_PATH: /tmp/local/lib
       PKG_CONFIG_PATH: /tmp/local/lib/pkgconfig
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           repository: apache/arrow
           path: apache-arrow
