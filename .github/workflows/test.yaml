@@ -96,7 +96,7 @@ jobs:
         run: |
           echo "CCACHE_DIR=${PWD}/.ccache" >> "${GITHUB_ENV}"
       - name: Cache ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-apache-arrow-${{ hashFiles('apache-arrow/cpp/**', 'apache-arrow/c_glib/**', 'apache-arrow/ruby/red-arrow/ext/**') }}
